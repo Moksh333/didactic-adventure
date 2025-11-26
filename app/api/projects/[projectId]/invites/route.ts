@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { sendInvite } from "@/lib/resend";
 
 
 export async function POST(req: Request, { params }: any) {
@@ -12,12 +13,17 @@ export async function POST(req: Request, { params }: any) {
     }
 
     const { email } = await req.json();
-    const { projectId } = params;
+    const { projectId } = await params;
+    // console.log('this is the project id: ',params);
+    
 
     // 1. Check if requester is PM of the project
     const project = await prisma.project.findUnique({
-      where: { id: projectId },
+      where: {
+        id: projectId
+      },
     });
+
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -56,6 +62,8 @@ export async function POST(req: Request, { params }: any) {
         member: existing,
       });
     }
+    console.log("--------------------------Called--------------------------------");
+    await sendInvite(email, projectId);
 
     // 4. Add the user as a project member
     const member = await prisma.member.create({

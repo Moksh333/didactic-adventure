@@ -16,7 +16,8 @@ export default async function InvitePage({ params }: InvitePageProps) {
   }
 
   const userId = session.user.id;
-
+  console.log(params.inviteId);
+  
   const invite = await prisma.invite.findUnique({
     where: { id: params.inviteId },
   });

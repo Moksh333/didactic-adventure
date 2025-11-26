@@ -6,11 +6,11 @@ import { Session } from "inspector/promises";
 
 export async function POST(req: Request) {
   try {
-    // const session = await getSession();
+    const session = await getSession();
 
-    // if (!session?.user?.id) {
-    //   return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    // }
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
 
     const invitedById = session.user.id?session.user.id:"Moksh";
     const { email, projectId } = await req.json();
