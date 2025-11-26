@@ -1,84 +1,147 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-export default function Dashboard() {
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [text, setText] = useState("");
+interface Project {
+  id: string;
+  name: string;
+  description?: string;
+}
 
-  const fetchTasks = async () => {
-    const res = await fetch("/api/tasks");
-    const data = await res.json();
-    if(data.error){
-        setTasks([]);
-    } else {
-        setTasks(data);
+export default function DashboardPage() {
+  const { data: session } = useSession();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+
+  // 🔥 NEW — Control dialog open/close
+  const [open, setOpen] = useState(false);
+
+  async function loadProjects() {
+    try {
+      const res = await fetch(`/api/projects`);
+      if (!res.ok) return setProjects([]);
+
+      const data = await res.json();
+
+      const managed = data.managedProjects || [];
+      const member = data.memberProjects || [];
+
+      const combined = Array.from(
+        new Map([...managed, ...member].map((p) => [p.id, p])).values()
+      );
+
+      setProjects(combined);
+    } catch (err) {
+      console.error("Error loading projects:", err);
+      setProjects([]);
     }
-  };
-
-  const addTask = async () => {
-    if (!text.trim()) return;
-    await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    setText("");
-    fetchTasks();
-  };
-
-  const toggleTask = async (id: string) => {
-    await fetch(`/api/tasks/${id}`, { method: "PUT" });
-    fetchTasks();
-  };
+  }
 
   useEffect(() => {
-    fetchTasks();
+    loadProjects();
   }, []);
 
+  async function handleCreateProject() {
+    if (!name.trim()) return;
+
+    const res = await fetch(`/api/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, description }),
+    });
+
+    if (res.ok) {
+      setName("");
+      setDescription("");
+      await loadProjects();
+
+      // 🔥 CLOSE THE DIALOG HERE
+      setOpen(false);
+    }
+  }
+
   return (
-    <main className="flex flex-col items-center min-h-screen bg-gray-50 p-8">
-      <h1 className="text-4xl font-bold mb-8 text-center">
-        Your Dashboard
-      </h1>
+    <main className="p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-4xl font-bold">Your Projects</h1>
 
-      <Card className="w-[400px]">
-        <CardHeader>
-          <CardTitle>Add New Task</CardTitle>
-        </CardHeader>
+        {/* Create Project Dialog */}
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => setOpen(true)}
+            >
+              + New Project
+            </Button>
+          </DialogTrigger>
 
-        <CardContent>
-          <div className="flex gap-2 mb-6">
-            <Input
-              placeholder="Enter a new task..."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <Button onClick={addTask}>Add</Button>
-          </div>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Project</DialogTitle>
+            </DialogHeader>
 
-          <div className="space-y-2">
-            {tasks.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center gap-2 p-2 border rounded"
-              >
-                <input
-                  type="checkbox"
-                  checked={t.completed}
-                  onChange={() => toggleTask(t.id)}
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Project Name
+                </label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Project name"
                 />
-                <span className={t.completed ? "line-through" : ""}>
-                  {t.text}
-                </span>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Description
+                </label>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Short description"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button onClick={handleCreateProject}>Create</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {projects.length === 0 && (
+        <p className="text-gray-500">No projects found. Create one to begin!</p>
+      )}
+
+      <div className="space-y-4 mt-4">
+        {projects.map((p) => (
+          <Link
+            href={`/dashboard/${p.id}`}
+            key={p.id}
+            className="block p-4 bg-white shadow rounded hover:bg-gray-50 transition"
+          >
+            <h2 className="text-xl font-semibold">{p.name}</h2>
+            <p className="text-gray-500">{p.description}</p>
+          </Link>
+        ))}
+      </div>
     </main>
   );
 }

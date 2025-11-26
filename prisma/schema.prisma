@@ -8,46 +8,67 @@ datasource db {
 }
 
 model User {
-  id            String     @id @default(uuid())
+  id            String    @id @default(uuid())
   name          String?
-  email         String?    @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
   accounts      Account[]
   sessions      Session[]
-  projects      Project[]  @relation("ProjectManager")
-  memberships   Member[]
-  tasks         Task[]
+
+  projects    Project[] @relation("ProjectManager")
+  memberships Member[]
+  tasks       Task[]
+
+  // 🔥 back relation for invites
+  sentInvites Invite[] @relation("InvitedByRelation")
 }
 
 model Project {
-  id          String    @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String
   description String?
-  manager     User      @relation("ProjectManager", fields: [managerId], references: [id])
+  manager     User    @relation("ProjectManager", fields: [managerId], references: [id])
   managerId   String
-  members     Member[]
-  tasks       Task[]
-  createdAt   DateTime  @default(now())
+
+  members Member[]
+  tasks   Task[]
+
+  // 🔥 NEW — back relation for invites
+  invites Invite[] @relation("ProjectInvites")
+
+  createdAt DateTime @default(now())
 }
 
 model Member {
-  id         String   @id @default(uuid())
-  user       User     @relation(fields: [userId], references: [id])
-  userId     String
-  project    Project  @relation(fields: [projectId], references: [id])
-  projectId  String
-  role       String   // e.g. "Developer", "Designer", etc.
+  id        String  @id @default(uuid())
+  user      User    @relation(fields: [userId], references: [id])
+  userId    String
+  project   Project @relation(fields: [projectId], references: [id])
+  projectId String
+  role      String // e.g. "Developer", "Designer", etc.
+}
+
+model Invite {
+  id        String  @id @default(uuid())
+  email     String
+  projectId String
+  project   Project @relation("ProjectInvites", fields: [projectId], references: [id])
+
+  invitedById String
+  invitedBy   User   @relation("InvitedByRelation", fields: [invitedById], references: [id])
+
+  createdAt DateTime @default(now())
 }
 
 model Task {
-  id          String   @id @default(uuid())
-  text        String
-  completed   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  project     Project  @relation(fields: [projectId], references: [id])
-  projectId   String
-  assignedTo  User?    @relation(fields: [assignedToId], references: [id])
+  id           String   @id @default(uuid())
+  text         String
+  completed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  project      Project  @relation(fields: [projectId], references: [id])
+  projectId    String
+  assignedTo   User?    @relation(fields: [assignedToId], references: [id])
   assignedToId String?
 }
 
@@ -66,6 +87,7 @@ model Account {
   session_state     String?
 
   user User @relation(fields: [userId], references: [id])
+
   @@unique([provider, providerAccountId])
 }
 
@@ -84,4 +106,3 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
-

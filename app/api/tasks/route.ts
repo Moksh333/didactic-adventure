@@ -30,17 +30,23 @@ export async function GET() {
 
 // Create new task (only PM can do this)
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email)
+  const session = await getServerSession({ req, ...authOptions });
+  if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const { projectId, text, assignedToEmail } = await req.json();
 
-  // Find user and project
+  if (!text || !projectId) {
+    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  // Get PM user
   const manager = await prisma.user.findUnique({
     where: { email: session.user.email },
   });
 
+  // Validate project
   const project = await prisma.project.findUnique({
     where: { id: projectId },
   });
@@ -52,17 +58,26 @@ export async function POST(req: Request) {
     );
   }
 
-  const assignee = await prisma.user.findUnique({
-    where: { email: assignedToEmail },
-  });
+  // 🔥 FIX: Only lookup assignee if email is provided
+  let assigneeId = null;
 
+  if (assignedToEmail && assignedToEmail.trim() !== "") {
+    const assignee = await prisma.user.findUnique({
+      where: { email: assignedToEmail },
+    });
+
+    assigneeId = assignee?.id ?? null;
+  }
+
+  // Create the task
   const newTask = await prisma.task.create({
     data: {
       text,
       projectId,
-      assignedToId: assignee?.id,
+      assignedToId: assigneeId,  // null if no assignee
     },
   });
 
   return NextResponse.json(newTask);
 }
+
