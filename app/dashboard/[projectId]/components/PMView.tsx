@@ -16,14 +16,16 @@ export default function PMView({ projectId }: { projectId: string }) {
     try {
       const tRes = await fetch(`/api/tasks?projectId=${projectId}`);
       const mRes = await fetch(`/api/projects/${projectId}/members`);
-
       // If API fails → fallback to empty
       const t = tRes.ok ? await tRes.json() : [];
       const m = mRes.ok ? await mRes.json() : [];
+      console.log(m.members);
 
       // Validate arrays (in case API returns weird things)
       setTasks(Array.isArray(t) ? t : []);
-      setMembers(Array.isArray(m) ? m : []);
+      setMembers(Array.isArray(m.members) ? m.members : []);
+      console.log(members);
+      
     } catch (err) {
       console.error("PMView load error:", err);
       setTasks([]);
@@ -33,6 +35,7 @@ export default function PMView({ projectId }: { projectId: string }) {
 
   async function inviteMember() {
     try {
+      console.log(email);
       await fetch(`/api/projects/${projectId}/invites`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

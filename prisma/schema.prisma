@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // url      = env("DATABASE_URL")
 }
 
 model User {
@@ -47,6 +47,7 @@ model Member {
   project   Project @relation(fields: [projectId], references: [id])
   projectId String
   role      String // e.g. "Developer", "Designer", etc.
+  status    MemberStatus@default(PENDING)
 }
 
 model Invite {
@@ -105,4 +106,9 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+enum MemberStatus {
+  PENDING
+  ACCEPTED
 }
